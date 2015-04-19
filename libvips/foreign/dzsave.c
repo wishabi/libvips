@@ -51,6 +51,8 @@
  * 	- use vips_region_shrink()
  * 22/2/15
  * 	- use a better temp dir name for fs dz output
+ * 16/4/15
+ * 	- add Flipp flyer output
  */
 
 /*
@@ -1038,6 +1040,15 @@ tile_name( Layer *layer, int x, int y )
 
 		break;
 
+	case VIPS_FOREIGN_DZ_LAYOUT_FLIPP:
+		vips_snprintf( name, VIPS_PATH_MAX,
+			"%d_%d_%d%s", dz->layer->n - layer->n, x, y,
+                        dz->file_suffix );
+
+		out = vips_gsf_path( dz->tree, name, NULL );
+
+		break;
+
 	default:
 		g_assert( 0 );
 		return( NULL );
@@ -1103,6 +1114,20 @@ strip_work( VipsThreadState *state, void *a )
 	if( dz->layout == VIPS_FOREIGN_DZ_LAYOUT_GOOGLE ) {
 		if( vips_embed( x, &t, 0, 0, dz->tile_size, dz->tile_size,
 			"background", dz->background,
+			NULL ) ) {
+			g_object_unref( x );
+			return( -1 );
+		}
+		g_object_unref( x );
+
+		x = t;
+	}
+
+	/* Flipp tiles need to be padded up to tilesize.
+	 */
+	if( dz->layout == VIPS_FOREIGN_DZ_LAYOUT_FLIPP) {
+		if( vips_embed( x, &t, 0, 0, dz->tile_size, dz->tile_size,
+			"extend", VIPS_EXTEND_COPY,
 			NULL ) ) {
 			g_object_unref( x );
 			return( -1 );
@@ -1465,7 +1490,18 @@ vips_foreign_save_dz_build( VipsObject *object )
 			VIPS_SETSTR( dz->suffix, ".jpg" );
 	}
 
-	/* Default to white background. 
+	/* Flipp defaults to 0 overlap, stripped, ".jpg".
+	 */
+	if( dz->layout == VIPS_FOREIGN_DZ_LAYOUT_FLIPP) {
+		if( !vips_object_argument_isset( object, "strip" ) )
+			save->strip = TRUE;
+		if( !vips_object_argument_isset( object, "overlap" ) )
+			dz->overlap = 0;
+		if( !vips_object_argument_isset( object, "suffix" ) )
+			VIPS_SETSTR( dz->suffix, ".jpg[Q=85]" );
+	}
+
+	/* Default to white background.
 	 */
 	if( dz->layout == VIPS_FOREIGN_DZ_LAYOUT_GOOGLE &&
 		!vips_object_argument_isset( object, "background" ) ) {
@@ -1734,6 +1770,9 @@ vips_foreign_save_dz_build( VipsObject *object )
 		if( write_blank( dz ) )
 			return( -1 );
 		break;
+
+	case VIPS_FOREIGN_DZ_LAYOUT_FLIPP:
+                break;
 
 	default:
 		g_assert( 0 );
