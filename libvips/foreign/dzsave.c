@@ -1126,7 +1126,11 @@ strip_work( VipsThreadState *state, void *a )
 	/* Flipp tiles need to be padded up to tilesize.
 	 */
 	if( dz->layout == VIPS_FOREIGN_DZ_LAYOUT_FLIPP) {
-		if( vips_embed( x, &t, 0, 0, dz->tile_size, dz->tile_size,
+		if( vips_embed( x, &t,
+                                state->x ? 0 : dz->overlap,
+                                state->y ? 0 : dz->overlap,
+                                dz->tile_size + 2 * dz->overlap,
+                                dz->tile_size + 2 * dz->overlap,
 			"extend", VIPS_EXTEND_COPY,
 			NULL ) ) {
 			g_object_unref( x );
@@ -1496,7 +1500,9 @@ vips_foreign_save_dz_build( VipsObject *object )
 		if( !vips_object_argument_isset( object, "strip" ) )
 			save->strip = TRUE;
 		if( !vips_object_argument_isset( object, "overlap" ) )
-			dz->overlap = 0;
+			dz->overlap = 4;
+		if( !vips_object_argument_isset( object, "tile_size" ) )
+			dz->tile_size = 248;
 		if( !vips_object_argument_isset( object, "suffix" ) )
 			VIPS_SETSTR( dz->suffix, ".jpg[Q=85]" );
 	}
