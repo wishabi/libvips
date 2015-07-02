@@ -615,6 +615,35 @@ pyramid_build( VipsForeignSaveDz *dz, Layer *above,
 }
 
 static int
+write_flipp_properties( VipsForeignSaveDz *dz )
+{
+	GsfOutput *out;
+	char buf[VIPS_PATH_MAX];
+	char *p;
+
+	out = vips_gsf_path( dz->tree, "metadata.json", NULL );
+
+	vips_snprintf( buf, VIPS_PATH_MAX, "%s", dz->suffix + 1 );
+	if( (p = (char *) vips__find_rightmost_brackets( buf )) )
+		*p = '\0';
+
+	gsf_output_printf( out, "{\n" );
+	gsf_output_printf( out, "  \"format\": \"%s\",\n", buf );
+	gsf_output_printf( out, "  \"suffix\": \"%s\",\n", buf );
+	gsf_output_printf( out, "  \"overlap\": %d,\n", dz->overlap );
+	gsf_output_printf( out, "  \"tilesize\": %d,\n", dz->tile_size );
+	gsf_output_printf( out, "  \"depth\": %d,\n", dz->layer->n + 1);
+	gsf_output_printf( out, "  \"width\": %d,\n", dz->layer->width );
+	gsf_output_printf( out, "  \"height\": %d\n", dz->layer->height );
+	gsf_output_printf( out, "}\n" );
+
+	(void) gsf_output_close( out );
+	g_object_unref( out );
+
+	return( 0 );
+}
+
+static int
 write_dzi( VipsForeignSaveDz *dz )
 {
 	GsfOutput *out;
@@ -1778,6 +1807,8 @@ vips_foreign_save_dz_build( VipsObject *object )
 		break;
 
 	case VIPS_FOREIGN_DZ_LAYOUT_FLIPP:
+		if( write_flipp_properties( dz ) )
+			return( -1 );
                 break;
 
 	default:
